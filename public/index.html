@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão de Frota</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Bootstrap 5 CSS -->
+    <!-- Bootstrap 5 CSS & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -73,6 +73,12 @@
                 <button class="nav-link" id="veiculos-tab" data-bs-toggle="tab" data-bs-target="#tab-veiculos"
                     type="button" role="tab" aria-controls="tab-veiculos" aria-selected="false">
                     <i class="bi bi-car-front-fill me-1"></i> Veículos Cadastrados
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="localizar-tab" data-bs-toggle="tab" data-bs-target="#tab-localizar"
+                    type="button" role="tab" aria-controls="tab-localizar" aria-selected="false">
+                    <i class="bi bi-search me-1"></i> Localizar Veículo
                 </button>
             </li>
         </ul>
@@ -158,6 +164,53 @@
             <div class="tab-pane fade" id="tab-veiculos" role="tabpanel" aria-labelledby="veiculos-tab">
                 <div class="row g-4" id="cards-container">
                     <!-- Inserido dinamicamente via JS -->
+                </div>
+            </div>
+
+            <!-- ABA 3: LOCALIZAR VEÍCULO -->
+            <div class="tab-pane fade" id="tab-localizar" role="tabpanel" aria-labelledby="localizar-tab">
+                <div class="card shadow-sm p-3 mb-4 bg-white border">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold text-secondary mb-1">Buscar por Placa, Modelo ou
+                                Responsável</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                                <input type="text" id="inputBuscaVeiculo" onkeyup="filtrarVeiculos()"
+                                    class="form-control" placeholder="Ex: TWP8J66, Mobi, Augusto...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary mb-1">Cidade / Localidade</label>
+                            <select id="filtroCidade" onchange="filtrarVeiculos()" class="form-select">
+                                <option value="">Todas as cidades</option>
+                                <option value="Belém">Belém</option>
+                                <option value="Marabá">Marabá</option>
+                                <option value="Castanhal">Castanhal</option>
+                                <option value="Santarém">Santarém</option>
+                                <option value="Altamira">Altamira</option>
+                                <option value="São Luis">São Luis</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary mb-1">Status</label>
+                            <select id="filtroStatus" onchange="filtrarVeiculos()" class="form-select">
+                                <option value="">Todos os status</option>
+                                <option value="ATIVO">Ativo</option>
+                                <option value="MANUTENCAO">Em Manutenção</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-grid">
+                            <button class="btn btn-outline-secondary" type="button" onclick="limparFiltros()"
+                                title="Limpar Filtros">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4" id="container-veiculos-localizados">
+                    <!-- Cards filtrados renderizados via JS -->
                 </div>
             </div>
 
@@ -340,7 +393,8 @@
     <script>
         const API_URL = '/api';
 
-        // Variáveis globais para gráficos
+        // Variáveis globais
+        let todosVeiculosGlobal = [];
         let chartStatusInstance = null;
         let chartLocalidadesInstance = null;
         let chartAltaKmInstance = null;
@@ -350,66 +404,119 @@
         async function carregarVeiculos() {
             try {
                 const res = await fetch(`${API_URL}/veiculos`);
-                const veiculos = await res.json();
+                todosVeiculosGlobal = await res.json();
 
                 // Renderiza o Dashboard
-                renderizarDashboard(veiculos);
+                renderizarDashboard(todosVeiculosGlobal);
 
-                const container = document.getElementById('cards-container');
+                // Renderiza as listas de veículos nas abas
+                renderizarCardsContainer(todosVeiculosGlobal, 'cards-container');
+                renderizarCardsContainer(todosVeiculosGlobal, 'container-veiculos-localizados');
+
+                // Preenche os selects dos modais
                 const selectVeiculo = document.getElementById('selectVeiculo');
                 const selectAvaria = document.getElementById('selectVeiculoAvaria');
 
-                container.innerHTML = '';
-                selectVeiculo.innerHTML = '<option value="">Selecione o veículo...</option>';
-                if (selectAvaria) {
-                    selectAvaria.innerHTML = '<option value="">Selecione o veículo...</option>';
-                }
+                if (selectVeiculo) selectVeiculo.innerHTML = '<option value="">Selecione o veículo...</option>';
+                if (selectAvaria) selectAvaria.innerHTML = '<option value="">Selecione o veículo...</option>';
 
-                veiculos.forEach(v => {
-                    selectVeiculo.innerHTML += `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
-                    if (selectAvaria) {
-                        selectAvaria.innerHTML += `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
-                    }
-
-                    let statusBadge = v.status === 'ATIVO'
-                        ? '<span class="badge bg-success">Ativo</span>'
-                        : '<span class="badge bg-warning text-dark">Em Manutenção</span>';
-
-                    let iconeVeiculo = v.tipo === 'MOTO'
-                        ? '<i class="bi bi-scooter text-primary me-1"></i>'
-                        : '<i class="bi bi-car-front text-primary me-1"></i>';
-
-                    container.innerHTML += `
-            <div class="col-md-4">
-              <div class="card card-veiculo shadow-sm h-100" onclick="verDetalhes(${v.id})">
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="card-title m-0 fw-bold">${iconeVeiculo} ${v.placa}</h5>
-                    ${statusBadge}
-                  </div>
-                  <p class="card-text text-muted mb-1">${v.modelo} (${v.ano})</p>
-                  
-                  <div class="mb-2">
-                    <small class="badge bg-light text-dark border me-1"><i class="bi bi-geo-alt"></i> ${v.localidade || 'Belém'}</small>
-                    <small class="badge bg-secondary"><i class="bi bi-person"></i> ${v.responsavel || 'Base'}</small>
-                  </div>
-
-                  <hr class="my-2">
-                  <div class="d-flex justify-content-between text-secondary">
-                    <small><i class="bi bi-speedometer2"></i> ${Number(v.km_atual).toLocaleString()} km</small>
-                    <small class="text-primary">Ver histórico &rarr;</small>
-                  </div>
-                </div>
-              </div>
-            </div>
-        `;
+                todosVeiculosGlobal.forEach(v => {
+                    const opt = `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
+                    if (selectVeiculo) selectVeiculo.innerHTML += opt;
+                    if (selectAvaria) selectAvaria.innerHTML += opt;
                 });
+
             } catch (err) {
                 console.error('Erro ao carregar veículos:', err);
             }
         }
 
-        // Submissão do Formulário de Novo Veículo
+        // Função para renderizar cards nos containers
+        function renderizarCardsContainer(lista, targetElementId) {
+            const container = document.getElementById(targetElementId);
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            if (lista.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5 text-muted">
+                        <i class="bi bi-search display-4 d-block mb-2"></i>
+                        Nenhum veículo encontrado com os filtros selecionados.
+                    </div>`;
+                return;
+            }
+
+            lista.forEach(v => {
+                let statusBadge = v.status === 'ATIVO'
+                    ? '<span class="badge bg-success">Ativo</span>'
+                    : '<span class="badge bg-warning text-dark">Em Manutenção</span>';
+
+                let iconeVeiculo = v.tipo === 'MOTO'
+                    ? '<i class="bi bi-scooter text-primary me-1"></i>'
+                    : '<i class="bi bi-car-front text-primary me-1"></i>';
+
+                container.innerHTML += `
+                    <div class="col-md-4">
+                        <div class="card card-veiculo shadow-sm h-100" onclick="verDetalhes(${v.id})">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="card-title m-0 fw-bold">${iconeVeiculo} ${v.placa}</h5>
+                                    ${statusBadge}
+                                </div>
+                                <p class="card-text text-muted mb-1">${v.modelo} (${v.ano})</p>
+                                
+                                <div class="mb-2">
+                                    <small class="badge bg-light text-dark border me-1"><i class="bi bi-geo-alt"></i> ${v.localidade || 'Belém'}</small>
+                                    <small class="badge bg-secondary"><i class="bi bi-person"></i> ${v.responsavel || 'Base'}</small>
+                                </div>
+
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between text-secondary">
+                                    <small><i class="bi bi-speedometer2"></i> ${Number(v.km_atual).toLocaleString()} km</small>
+                                    <small class="text-primary">Ver histórico &rarr;</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Lógica de Busca e Filtro em Tempo Real
+        function filtrarVeiculos() {
+            const termo = document.getElementById('inputBuscaVeiculo').value.toLowerCase().trim();
+            const cidade = document.getElementById('filtroCidade').value;
+            const status = document.getElementById('filtroStatus').value;
+
+            const resultado = todosVeiculosGlobal.filter(v => {
+                const placaMatch = (v.placa || '').toLowerCase().includes(termo);
+                const modeloMatch = (v.modelo || '').toLowerCase().includes(termo);
+                const marcaMatch = (v.marca || '').toLowerCase().includes(termo);
+                const respMatch = (v.responsavel || '').toLowerCase().includes(termo);
+
+                const atendeTermo = termo === '' || placaMatch || modeloMatch || marcaMatch || respMatch;
+                const atendeCidade = cidade === '' || (v.localidade || 'Belém') === cidade;
+
+                let statusNormalizado = (v.status || '').toUpperCase();
+                if (statusNormalizado !== 'ATIVO') statusNormalizado = 'MANUTENCAO';
+                const atendeStatus = status === '' || statusNormalizado === status;
+
+                return atendeTermo && atendeCidade && atendeStatus;
+            });
+
+            renderizarCardsContainer(resultado, 'container-veiculos-localizados');
+        }
+
+        // Limpar filtros de busca
+        function limparFiltros() {
+            document.getElementById('inputBuscaVeiculo').value = '';
+            document.getElementById('filtroCidade').value = '';
+            document.getElementById('filtroStatus').value = '';
+            filtrarVeiculos();
+        }
+
+        // Submissão de Novo Veículo
         document.getElementById('formNovoVeiculo').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -446,7 +553,39 @@
             }
         });
 
-        // Submissão do Formulário de Avaria
+        // Submissão de Abastecimento
+        document.getElementById('formAbastecimento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                veiculo_id: document.getElementById('selectVeiculo').value,
+                km_abastecimento: document.getElementById('kmAbastecimento').value,
+                litros: document.getElementById('litros').value,
+                valor_total: document.getElementById('valorTotal').value,
+                tipo_combustivel: document.getElementById('tipoCombustivel').value,
+                posto: document.getElementById('posto').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/abastecimentos`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalAbastecimento')).hide();
+                    document.getElementById('formAbastecimento').reset();
+                    carregarVeiculos();
+                } else {
+                    alert('Erro ao registrar abastecimento.');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Submissão de Avaria
         document.getElementById('formAvaria').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -479,9 +618,7 @@
             try {
                 const response = await fetch(`/api/avarias/${idAvaria}/status`, {
                     method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({status: novoStatus})
                 });
 
@@ -491,10 +628,8 @@
                     throw new Error(data.erro || 'Erro ao atualizar status da avaria.');
                 }
 
-                // 1. Atualiza lista principal e KPIs no fundo
                 carregarVeiculos();
 
-                // 2. Recarrega o conteúdo do modal sem criar nova instância/backdrop
                 if (data.avaria && data.avaria.veiculo_id) {
                     await verDetalhes(data.avaria.veiculo_id, true);
                 }
@@ -537,55 +672,55 @@
                             : `<button class="btn btn-sm btn-outline-success py-0" onclick="alterarStatusAvaria(${a.id}, 'SOLUCIONADO')"><i class="bi bi-check-lg"></i> Resolver</button>`;
 
                         return `
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div class="${textoEstilo}">
-                    <i class="bi bi-exclamation-triangle me-1"></i> ${a.descricao} 
-                    <small class="text-muted">(${new Date(a.data_registro).toLocaleDateString()})</small>
-                </div>
-                <div class="d-flex align-items-center">
-                    ${badgeStatus}
-                    ${botaoAcao}
-                </div>
-            </li>
-        `;
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="${textoEstilo}">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> ${a.descricao} 
+                                    <small class="text-muted">(${new Date(a.data_registro).toLocaleDateString()})</small>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    ${badgeStatus}
+                                    ${botaoAcao}
+                                </div>
+                            </li>
+                        `;
                     }).join('')
                     : '<li class="list-group-item text-muted">Nenhuma avaria registrada.</li>';
 
                 let abastecimentosHTML = data.ultimos_abastecimentos && data.ultimos_abastecimentos.length
                     ? data.ultimos_abastecimentos.map(ab => `
-        <tr>
-            <td>${new Date(ab.data_abastecimento).toLocaleDateString()}</td>
-            <td>${ab.km_abastecimento} km</td>
-            <td>${ab.litros} L</td>
-            <td>R$ ${parseFloat(ab.valor_total).toFixed(2)}</td>
-        </tr>
-    `).join('')
+                        <tr>
+                            <td>${new Date(ab.data_abastecimento).toLocaleDateString()}</td>
+                            <td>${ab.km_abastecimento} km</td>
+                            <td>${ab.litros} L</td>
+                            <td>R$ ${parseFloat(ab.valor_total).toFixed(2)}</td>
+                        </tr>
+                    `).join('')
                     : '<tr><td colspan="4" class="text-center text-muted">Nenhum abastecimento recente.</td></tr>';
 
                 conteudo.innerHTML = `
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <p class="mb-1"><strong>Tipo:</strong> ${v.tipo || 'CARRO'}</p>
-      <p class="mb-1"><strong>Localidade:</strong> ${v.localidade || 'Belém'}</p>
-      <p class="mb-1"><strong>Responsável:</strong> ${v.responsavel || 'Base'}</p>
-    </div>
-    <div class="col-md-6">
-      <p class="mb-1"><strong>Quilometragem:</strong> ${Number(v.km_atual).toLocaleString()} km</p>
-      <p class="mb-1"><strong>Status:</strong> ${v.status}</p>
-    </div>
-  </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Tipo:</strong> ${v.tipo || 'CARRO'}</p>
+                            <p class="mb-1"><strong>Localidade:</strong> ${v.localidade || 'Belém'}</p>
+                            <p class="mb-1"><strong>Responsável:</strong> ${v.responsavel || 'Base'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Quilometragem:</strong> ${Number(v.km_atual).toLocaleString()} km</p>
+                            <p class="mb-1"><strong>Status:</strong> ${v.status}</p>
+                        </div>
+                    </div>
 
-  <h6 class="fw-bold mt-4"><i class="bi bi-fuel-pump"></i> Últimos Abastecimentos</h6>
-  <table class="table table-sm table-striped">
-    <thead>
-      <tr><th>Data</th><th>KM</th><th>Litros</th><th>Valor</th></tr>
-    </thead>
-    <tbody>${abastecimentosHTML}</tbody>
-  </table>
+                    <h6 class="fw-bold mt-4"><i class="bi bi-fuel-pump"></i> Últimos Abastecimentos</h6>
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr><th>Data</th><th>KM</th><th>Litros</th><th>Valor</th></tr>
+                        </thead>
+                        <tbody>${abastecimentosHTML}</tbody>
+                    </table>
 
-  <h6 class="fw-bold mt-4"><i class="bi bi-exclamation-octagon"></i> Histórico de Avarias</h6>
-  <ul class="list-group list-group-flush">${avariasHTML}</ul>
-`;
+                    <h6 class="fw-bold mt-4"><i class="bi bi-exclamation-octagon"></i> Histórico de Avarias</h6>
+                    <ul class="list-group list-group-flush">${avariasHTML}</ul>
+                `;
             } catch (err) {
                 conteudo.innerHTML = '<div class="alert alert-danger">Erro ao carregar os dados.</div>';
             }
@@ -643,7 +778,22 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {legend: {display: false}},
-                    scales: {y: {beginAtZero: true, ticks: {stepSize: 1}}}
+                    scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,      // Impede o Chart.js de pular rótulos
+                                maxRotation: 45,      // Inclina o texto em até 45 graus
+                                minRotation: 45,      // Mantém todos na mesma inclinação
+                                font: {
+                                    size: 10          // Reduz levemente a fonte para caber perfeitamente
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {stepSize: 1}
+                        }
+                    }
                 }
             });
 
@@ -666,38 +816,6 @@
                 }
             });
         }
-
-        // Submissão do Formulário de Abastecimento
-        document.getElementById('formAbastecimento').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const payload = {
-                veiculo_id: document.getElementById('selectVeiculo').value,
-                km_abastecimento: document.getElementById('kmAbastecimento').value,
-                litros: document.getElementById('litros').value,
-                valor_total: document.getElementById('valorTotal').value,
-                tipo_combustivel: document.getElementById('tipoCombustivel').value,
-                posto: document.getElementById('posto').value
-            };
-
-            try {
-                const res = await fetch(`${API_URL}/abastecimentos`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    bootstrap.Modal.getInstance(document.getElementById('modalAbastecimento')).hide();
-                    document.getElementById('formAbastecimento').reset();
-                    carregarVeiculos();
-                } else {
-                    alert('Erro ao registrar abastecimento.');
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        });
     </script>
 </body>
 
