@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Frota</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .card-veiculo {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .card-veiculo:hover {
+            transform: translateY(-4px);
+        }
+
+        .nav-tabs .nav-link {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand font-monospace" href="#"><i class="bi bi-truck me-2"></i>SISTEMA DE FROTA POLO
+                SEGURANÇA</a>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <!-- Cabeçalho e Botões de Ação -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <h2><i class="bi bi-speedometer2"></i> Gestão de Frota</h2>
+            <div>
+                <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#modalNovoVeiculo">
+                    <i class="bi bi-plus-lg me-1"></i> Novo Veículo
+                </button>
+                <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#modalAbastecimento">
+                    <i class="bi bi-fuel-pump me-1"></i> Lançar Abastecimento
+                </button>
+                <button class="btn btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#modalAvaria">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Relatar Avaria
+                </button>
+            </div>
+        </div>
+
+        <!-- Navegação por Abas -->
+        <ul class="nav nav-tabs mb-4" id="frotaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#tab-dashboard"
+                    type="button" role="tab" aria-controls="tab-dashboard" aria-selected="true">
+                    <i class="bi bi-pie-chart-fill me-1"></i> Dashboard
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="veiculos-tab" data-bs-toggle="tab" data-bs-target="#tab-veiculos"
+                    type="button" role="tab" aria-controls="tab-veiculos" aria-selected="false">
+                    <i class="bi bi-car-front-fill me-1"></i> Veículos Cadastrados
+                </button>
+            </li>
+        </ul>
+
+        <!-- Conteúdo das Abas -->
+        <div class="tab-content" id="frotaTabsContent">
+
+            <!-- ABA 1: DASHBOARD -->
+            <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+                <!-- Dashboard KPI Cards -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase mb-1"><i class="bi bi-truck me-2"></i>Total da
+                                    Frota</h6>
+                                <h2 class="display-6 fw-bold mb-0" id="kpiTotalVeiculos">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase mb-1"><i
+                                        class="bi bi-check-circle me-2"></i>Veículos Ativos</h6>
+                                <h2 class="display-6 fw-bold mb-0" id="kpiVeiculosAtivos">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase mb-1"><i class="bi bi-tools me-2"></i>Em Manutenção
+                                </h6>
+                                <h2 class="display-6 fw-bold mb-0" id="kpiEmManutencao">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase mb-1"><i class="bi bi-speedometer2 me-2"></i>KM >
+                                    100.000</h6>
+                                <h2 class="display-6 fw-bold mb-0" id="kpiAltaKm">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos do Dashboard -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-pie-chart-fill me-2"></i>Status da
+                                Frota</div>
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <canvas id="chartStatus" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-geo-alt-fill me-2"></i>Veículos
+                                por Localidade</div>
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <canvas id="chartLocalidades" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i
+                                    class="bi bi-bar-chart-line-fill me-2"></i>Veículos com KM > 100.000</div>
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <canvas id="chartAltaKm" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 2: VEÍCULOS CADASTRADOS -->
+            <div class="tab-pane fade" id="tab-veiculos" role="tabpanel" aria-labelledby="veiculos-tab">
+                <div class="row g-4" id="cards-container">
+                    <!-- Inserido dinamicamente via JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal Novo Veículo -->
+    <div class="modal fade" id="modalNovoVeiculo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Cadastrar Veículo / Moto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formNovoVeiculo">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Tipo de Veículo</label>
+                                <select class="form-select" id="cadTipo" required>
+                                    <option value="CARRO">Carro</option>
+                                    <option value="MOTO">Moto</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Placa</label>
+                                <input type="text" class="form-control" id="cadPlaca" placeholder="ABC-1234" required
+                                    style="text-transform: uppercase;">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Marca</label>
+                                <input type="text" class="form-control" id="cadMarca" placeholder="Ex: Honda / Fiat"
+                                    required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Modelo</label>
+                                <input type="text" class="form-control" id="cadModelo" placeholder="Ex: Bros 160 / Uno"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Ano</label>
+                                <input type="number" class="form-control" id="cadAno" placeholder="2024" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">KM Inicial</label>
+                                <input type="number" class="form-control" id="cadKmInicial" placeholder="0" min="0"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Localidade</label>
+                                <input type="text" class="form-control" id="cadLocalidade"
+                                    placeholder="Ex: Belém ou Barcarena" value="Belém" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Responsável</label>
+                                <input type="text" class="form-control" id="cadResponsavel"
+                                    placeholder="Ex: Base ou augusto.cesar" value="Base" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Cadastrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes do Veículo -->
+    <div class="modal fade" id="modalDetalhes" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="detalheTitulo">Detalhes do Veículo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detalheConteudo">
+                    <div class="text-center py-4">Carregando informações...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lançar Abastecimento -->
+    <div class="modal fade" id="modalAbastecimento" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-fuel-pump"></i> Registrar Abastecimento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formAbastecimento">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Veículo</label>
+                            <select class="form-select" id="selectVeiculo" required>
+                                <!-- Preenchido dinamicamente -->
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">KM Atual</label>
+                                <input type="number" class="form-control" id="kmAbastecimento" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Litros</label>
+                                <input type="number" step="0.01" class="form-control" id="litros" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Valor Total (R$)</label>
+                                <input type="number" step="0.01" class="form-control" id="valorTotal" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Combustível</label>
+                                <select class="form-select" id="tipoCombustivel" required>
+                                    <option value="Gasolina">Gasolina</option>
+                                    <option value="Etanol">Etanol</option>
+                                    <option value="Diesel">Diesel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Posto</label>
+                            <input type="text" class="form-control" id="posto"
+                                placeholder="Ex: Posto Petrobras Central">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Salvar Lançamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Avaria -->
+    <div class="modal fade" id="modalAvaria" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Registrar Avaria</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formAvaria">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Veículo</label>
+                            <select class="form-select" id="selectVeiculoAvaria" required>
+                                <!-- Preenchido dinamicamente via JS -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Descrição do Problema / Avaria</label>
+                            <textarea class="form-control" id="descricaoAvaria" rows="3"
+                                placeholder="Ex: Barulho no freio ou luz da injeção acesa" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning text-dark">Salvar Avaria</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_URL = '/api';
+
+        // Variáveis globais para gráficos
+        let chartStatusInstance = null;
+        let chartLocalidadesInstance = null;
+        let chartAltaKmInstance = null;
+
+        document.addEventListener('DOMContentLoaded', carregarVeiculos);
+
+        async function carregarVeiculos() {
+            try {
+                const res = await fetch(`${API_URL}/veiculos`);
+                const veiculos = await res.json();
+
+                // Renderiza o Dashboard
+                renderizarDashboard(veiculos);
+
+                const container = document.getElementById('cards-container');
+                const selectVeiculo = document.getElementById('selectVeiculo');
+                const selectAvaria = document.getElementById('selectVeiculoAvaria');
+
+                container.innerHTML = '';
+                selectVeiculo.innerHTML = '<option value="">Selecione o veículo...</option>';
+                if (selectAvaria) {
+                    selectAvaria.innerHTML = '<option value="">Selecione o veículo...</option>';
+                }
+
+                veiculos.forEach(v => {
+                    selectVeiculo.innerHTML += `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
+                    if (selectAvaria) {
+                        selectAvaria.innerHTML += `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
+                    }
+
+                    let statusBadge = v.status === 'ATIVO'
+                        ? '<span class="badge bg-success">Ativo</span>'
+                        : '<span class="badge bg-warning text-dark">Em Manutenção</span>';
+
+                    let iconeVeiculo = v.tipo === 'MOTO'
+                        ? '<i class="bi bi-scooter text-primary me-1"></i>'
+                        : '<i class="bi bi-car-front text-primary me-1"></i>';
+
+                    container.innerHTML += `
+            <div class="col-md-4">
+              <div class="card card-veiculo shadow-sm h-100" onclick="verDetalhes(${v.id})">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="card-title m-0 fw-bold">${iconeVeiculo} ${v.placa}</h5>
+                    ${statusBadge}
+                  </div>
+                  <p class="card-text text-muted mb-1">${v.modelo} (${v.ano})</p>
+                  
+                  <div class="mb-2">
+                    <small class="badge bg-light text-dark border me-1"><i class="bi bi-geo-alt"></i> ${v.localidade || 'Belém'}</small>
+                    <small class="badge bg-secondary"><i class="bi bi-person"></i> ${v.responsavel || 'Base'}</small>
+                  </div>
+
+                  <hr class="my-2">
+                  <div class="d-flex justify-content-between text-secondary">
+                    <small><i class="bi bi-speedometer2"></i> ${Number(v.km_atual).toLocaleString()} km</small>
+                    <small class="text-primary">Ver histórico &rarr;</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `;
+                });
+            } catch (err) {
+                console.error('Erro ao carregar veículos:', err);
+            }
+        }
+
+        // Submissão do Formulário de Novo Veículo
+        document.getElementById('formNovoVeiculo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                tipo: document.getElementById('cadTipo').value,
+                placa: document.getElementById('cadPlaca').value,
+                marca: document.getElementById('cadMarca').value,
+                modelo: document.getElementById('cadModelo').value,
+                ano: parseInt(document.getElementById('cadAno').value),
+                km_atual: parseInt(document.getElementById('cadKmInicial').value),
+                localidade: document.getElementById('cadLocalidade').value,
+                responsavel: document.getElementById('cadResponsavel').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/veiculos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalNovoVeiculo')).hide();
+                    document.getElementById('formNovoVeiculo').reset();
+                    carregarVeiculos();
+                } else {
+                    alert(data.erro || 'Erro ao cadastrar veículo.');
+                }
+            } catch (err) {
+                console.error('Erro na requisição:', err);
+                alert('Erro ao conectar com o servidor.');
+            }
+        });
+
+        // Submissão do Formulário de Avaria
+        document.getElementById('formAvaria').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                veiculo_id: document.getElementById('selectVeiculoAvaria').value,
+                descricao: document.getElementById('descricaoAvaria').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/avarias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalAvaria')).hide();
+                    document.getElementById('formAvaria').reset();
+                    carregarVeiculos();
+                } else {
+                    alert('Erro ao registrar avaria.');
+                }
+            } catch (err) {
+                console.error('Erro:', err);
+            }
+        });
+
+        // Alterar status da avaria
+        async function alterarStatusAvaria(idAvaria, novoStatus = 'SOLUCIONADO') {
+            try {
+                const response = await fetch(`/api/avarias/${idAvaria}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: novoStatus })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.erro || 'Erro ao atualizar status da avaria.');
+                }
+
+                // 1. Atualiza lista principal e KPIs no fundo
+                carregarVeiculos();
+
+                // 2. Recarrega o conteúdo do modal sem criar nova instância/backdrop
+                if (data.avaria && data.avaria.veiculo_id) {
+                    await verDetalhes(data.avaria.veiculo_id, true);
+                }
+
+            } catch (error) {
+                console.error('Erro ao atualizar avaria:', error);
+                alert(error.message || 'Erro ao comunicar com o servidor.');
+            }
+        }
+
+        // Modal de Detalhes
+        async function verDetalhes(id, apenasAtualizar = false) {
+            const modalElement = document.getElementById('modalDetalhes');
+            const conteudo = document.getElementById('detalheConteudo');
+
+            if (!apenasAtualizar) {
+                conteudo.innerHTML = '<div class="text-center py-4">Carregando informações...</div>';
+                const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                modalInstance.show();
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/veiculos/${id}`);
+                const data = await res.json();
+                const v = data.veiculo;
+
+                document.getElementById('detalheTitulo').innerText = `${v.placa} - ${v.marca} ${v.modelo}`;
+
+                let avariasHTML = data.avarias && data.avarias.length
+                    ? data.avarias.map(a => {
+                        const isSolucionado = a.status === 'SOLUCIONADO';
+                        const badgeStatus = isSolucionado
+                            ? '<span class="badge bg-success me-2">Solucionado</span>'
+                            : '<span class="badge bg-warning text-dark me-2">Pendente</span>';
+
+                        const textoEstilo = isSolucionado ? 'text-muted text-decoration-line-through' : 'text-danger fw-semibold';
+
+                        const botaoAcao = isSolucionado
+                            ? `<button class="btn btn-sm btn-outline-secondary py-0" onclick="alterarStatusAvaria(${a.id}, 'PENDENTE')">Reabrir</button>`
+                            : `<button class="btn btn-sm btn-outline-success py-0" onclick="alterarStatusAvaria(${a.id}, 'SOLUCIONADO')"><i class="bi bi-check-lg"></i> Resolver</button>`;
+
+                        return `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="${textoEstilo}">
+                    <i class="bi bi-exclamation-triangle me-1"></i> ${a.descricao} 
+                    <small class="text-muted">(${new Date(a.data_registro).toLocaleDateString()})</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    ${badgeStatus}
+                    ${botaoAcao}
+                </div>
+            </li>
+        `;
+                    }).join('')
+                    : '<li class="list-group-item text-muted">Nenhuma avaria registrada.</li>';
+
+                let abastecimentosHTML = data.ultimos_abastecimentos && data.ultimos_abastecimentos.length
+                    ? data.ultimos_abastecimentos.map(ab => `
+        <tr>
+            <td>${new Date(ab.data_abastecimento).toLocaleDateString()}</td>
+            <td>${ab.km_abastecimento} km</td>
+            <td>${ab.litros} L</td>
+            <td>R$ ${parseFloat(ab.valor_total).toFixed(2)}</td>
+        </tr>
+    `).join('')
+                    : '<tr><td colspan="4" class="text-center text-muted">Nenhum abastecimento recente.</td></tr>';
+
+                conteudo.innerHTML = `
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <p class="mb-1"><strong>Tipo:</strong> ${v.tipo || 'CARRO'}</p>
+      <p class="mb-1"><strong>Localidade:</strong> ${v.localidade || 'Belém'}</p>
+      <p class="mb-1"><strong>Responsável:</strong> ${v.responsavel || 'Base'}</p>
+    </div>
+    <div class="col-md-6">
+      <p class="mb-1"><strong>Quilometragem:</strong> ${Number(v.km_atual).toLocaleString()} km</p>
+      <p class="mb-1"><strong>Status:</strong> ${v.status}</p>
+    </div>
+  </div>
+
+  <h6 class="fw-bold mt-4"><i class="bi bi-fuel-pump"></i> Últimos Abastecimentos</h6>
+  <table class="table table-sm table-striped">
+    <thead>
+      <tr><th>Data</th><th>KM</th><th>Litros</th><th>Valor</th></tr>
+    </thead>
+    <tbody>${abastecimentosHTML}</tbody>
+  </table>
+
+  <h6 class="fw-bold mt-4"><i class="bi bi-exclamation-octagon"></i> Histórico de Avarias</h6>
+  <ul class="list-group list-group-flush">${avariasHTML}</ul>
+`;
+            } catch (err) {
+                conteudo.innerHTML = '<div class="alert alert-danger">Erro ao carregar os dados.</div>';
+            }
+        }
+
+        // Renderização do Dashboard
+        function renderizarDashboard(veiculos) {
+            const LIMITE_KM = 100000;
+
+            const total = veiculos.length;
+            const ativos = veiculos.filter(v => v.status === 'ATIVO').length;
+            const manutencao = veiculos.filter(v => v.status !== 'ATIVO').length;
+            const altaKmVeiculos = veiculos.filter(v => Number(v.km_atual) >= LIMITE_KM);
+
+            document.getElementById('kpiTotalVeiculos').innerText = total;
+            document.getElementById('kpiVeiculosAtivos').innerText = ativos;
+            document.getElementById('kpiEmManutencao').innerText = manutencao;
+            document.getElementById('kpiAltaKm').innerText = altaKmVeiculos.length;
+
+            if (chartStatusInstance) chartStatusInstance.destroy();
+            if (chartLocalidadesInstance) chartLocalidadesInstance.destroy();
+            if (chartAltaKmInstance) chartAltaKmInstance.destroy();
+
+            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+            chartStatusInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ativos', 'Em Manutenção'],
+                    datasets: [{
+                        data: [ativos, manutencao],
+                        backgroundColor: ['#198754', '#ffc107']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const contagemLocalidades = {};
+            veiculos.forEach(v => {
+                const loc = v.localidade || 'Belém';
+                contagemLocalidades[loc] = (contagemLocalidades[loc] || 0) + 1;
+            });
+
+            const ctxLocalidades = document.getElementById('chartLocalidades').getContext('2d');
+            chartLocalidadesInstance = new Chart(ctxLocalidades, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(contagemLocalidades),
+                    datasets: [{
+                        label: 'Veículos',
+                        data: Object.values(contagemLocalidades),
+                        backgroundColor: '#0d6efd'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+
+            const ctxAltaKm = document.getElementById('chartAltaKm').getContext('2d');
+            chartAltaKmInstance = new Chart(ctxAltaKm, {
+                type: 'bar',
+                data: {
+                    labels: altaKmVeiculos.map(v => v.placa),
+                    datasets: [{
+                        label: 'KM Atual',
+                        data: altaKmVeiculos.map(v => Number(v.km_atual)),
+                        backgroundColor: '#dc3545'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+        }
+
+        // Submissão do Formulário de Abastecimento
+        document.getElementById('formAbastecimento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                veiculo_id: document.getElementById('selectVeiculo').value,
+                km_abastecimento: document.getElementById('kmAbastecimento').value,
+                litros: document.getElementById('litros').value,
+                valor_total: document.getElementById('valorTotal').value,
+                tipo_combustivel: document.getElementById('tipoCombustivel').value,
+                posto: document.getElementById('posto').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/abastecimentos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalAbastecimento')).hide();
+                    document.getElementById('formAbastecimento').reset();
+                    carregarVeiculos();
+                } else {
+                    alert('Erro ao registrar abastecimento.');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+
+</html>
