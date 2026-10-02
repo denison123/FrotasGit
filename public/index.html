@@ -427,7 +427,7 @@
             try {
                 const res = await fetch(`${API_URL}/veiculos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
@@ -458,7 +458,7 @@
             try {
                 const res = await fetch(`${API_URL}/avarias`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
@@ -482,7 +482,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ status: novoStatus })
+                    body: JSON.stringify({status: novoStatus})
                 });
 
                 const data = await response.json();
@@ -619,7 +619,7 @@
                         backgroundColor: ['#198754', '#ffc107']
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: {responsive: true, maintainAspectRatio: false}
             });
 
             const contagemLocalidades = {};
@@ -642,8 +642,8 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    plugins: {legend: {display: false}},
+                    scales: {y: {beginAtZero: true, ticks: {stepSize: 1}}}
                 }
             });
 
@@ -661,8 +661,8 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: false } }
+                    plugins: {legend: {display: false}},
+                    scales: {y: {beginAtZero: false}}
                 }
             });
         }
@@ -683,7 +683,7 @@
             try {
                 const res = await fetch(`${API_URL}/abastecimentos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
